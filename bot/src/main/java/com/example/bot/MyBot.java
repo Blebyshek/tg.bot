@@ -47,7 +47,8 @@ public class MyBot extends TelegramLongPollingBot {
 
             switch (messageText) {
                 case "/start" -> {
-                    sendMessage(chatId, "This command is not supported, type /help for more info11111 ");
+                    registerUser(update);
+                    sendMessage(chatId, "Привет Абобус");
                 }
 
                 case "/help" -> sendMessage(chatId, "This commadadadadadnd is not supported, type /help for more info11111 ");
@@ -62,6 +63,7 @@ public class MyBot extends TelegramLongPollingBot {
     private void sendMessage (long chatId, String textToSend){
         SendMessage message=new SendMessage();
         message.setChatId(String.valueOf(chatId));
+        message.setText(textToSend);
 
 
         try {
@@ -71,28 +73,31 @@ public class MyBot extends TelegramLongPollingBot {
         }
     }
 
-//    private void registerUser(Message msg) {
-//        if (userRepository.findById(msg.getChatId()).isEmpty()) {  //проверка есть ли пользователь в базе, если нет записывает время регистрации
-//            var chatId = msg.getChatId();
-//            User user = new User();
-//            user.setChatId(chatId);
-//            sendMessage(chatId, "Добро пожаловать! Пожалуйста, заполните анкету.");
-//            sendMessage(chatId, "Введите ваш пол:");
-//            user.setGender(msg.getText());
-//            sendMessage(chatId, "Введите ваш возраст:");
-//            user.setAge(Integer.parseInt(msg.getText()));
-//            sendMessage(chatId, "Введите ваш город:");
-//            user.setCity(msg.getText());
-//            sendMessage(chatId, "Введите имя:");
-//            user.setName(msg.getText());
-//            sendMessage(chatId, "Введите описание:");
-//            user.setDescription(msg.getText());
-//
-//            userRepository.save(user);
-//
-//
-//        }
-//    }
+    private void registerUser(Update update) {
+        String msg=update.getMessage().getText();
+        long chatId=update.getMessage().getChatId();
+        if (userRepository.findById(chatId).isEmpty()) {
+
+            User user = new User();
+            user.setChatId(chatId);
+            sendMessage(chatId, "Добро пожаловать! Пожалуйста, заполните анкету.");
+            sendMessage(chatId, "Введите ваш пол:");
+            user.setGender(msg);
+            sendMessage(chatId, "Введите ваш возраст:");
+            user.setAge(Integer.parseInt(msg));
+            sendMessage(chatId, "Введите ваш город:");
+            user.setCity(msg);
+            sendMessage(chatId, "Введите имя:");
+            user.setName(msg);
+            sendMessage(chatId, "Введите описание:");
+            user.setDescription(msg);
+            userRepository.save(user);
+
+
+
+
+        }
+    }
 
 
 }
