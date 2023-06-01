@@ -18,7 +18,7 @@ public class MyBot extends TelegramLongPollingBot {
     @Autowired
     private UserRepository userRepository;
 
-    public MyBot (BotConfig config) {
+    public MyBot(BotConfig config) {
         this.config = config;
 
     }
@@ -33,36 +33,18 @@ public class MyBot extends TelegramLongPollingBot {
         return config.getToken();
     }
 
-    private void sendMessage (long chatId, String textToSend){
-        SendMessage message=new SendMessage();
+    private void sendMessage(long chatId, String textToSend) {
+        SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText(textToSend);
 
 
         try {
             execute(message);
-        } catch (TelegramApiException e){
+        } catch (TelegramApiException e) {
 
         }
     }
-//    @Override
-//    public void onUpdateReceived(Update update) {
-//        if (update.hasMessage() && update.getMessage().hasText()){   // Проверка пришло что-то и есть текст
-//            String messageText=update.getMessage().getText();   //Получение сообщения
-//            long chatId=update.getMessage().getChatId(); // Чат Ид
-//
-//            switch (messageText) {
-//                case "/start" -> {
-//                    registerUser(update);
-//                    sendMessage(chatId, "Привет Абобус");
-//                }
-//
-//                case "/help" -> sendMessage(chatId, "This commadadadadadnd is not supported, type /help for more info11111 ");
-//
-//                default -> sendMessage(chatId, "This comm222222nfo111122221 ");
-//            }
-//        }
-
 
 
     @Override
@@ -99,11 +81,17 @@ public class MyBot extends TelegramLongPollingBot {
                             sendMessage(chatId, "Какой у тебя пол? (Мужской/Женский)");
                             break;
                         case "gender":
-                            user.setGender(text);
-                            user.setState("age");
-                            userRepository.save(user);
-                            sendMessage(chatId, "Сколько тебе лет?");
+                            if (text.equals("Мужской") || text.equals("Женский")) {
+                                user.setGender(text);
+                                user.setState("age");
+                                userRepository.save(user);
+                                sendMessage(chatId, "Сколько тебе лет?");
+                            } else {
+                                sendMessage(chatId, "Некорректное значение пола. Пожалуйста, введите 'Мужской' или 'Женский'.");
+                                sendMessage(chatId, "Какой у тебя пол? (Мужской/Женский)");
+                            }
                             break;
+
                         case "age":
                             int age;
                             try {
@@ -125,10 +113,15 @@ public class MyBot extends TelegramLongPollingBot {
                             sendMessage(chatId, "Расскажи немного о себе");
                             break;
                         case "description":
-                            user.setDescription(text);
-                            user.setState("complete");
-                            userRepository.save(user);
-                            sendMessage(chatId, "Анкета успешно заполнена!");
+                            if (text.length() <= 100) {
+                                user.setDescription(text);
+                                user.setState("complete");
+                                userRepository.save(user);
+                                sendMessage(chatId, "Анкета успешно заполнена!");
+                            } else {
+                                sendMessage(chatId, "Максимальная длина описания - 100 символов. Пожалуйста, введите описание, которое не превышает 100 символов.");
+                                sendMessage(chatId, "Расскажи немного о себе");
+                            }
                             break;
                         default:
                             sendMessage(chatId, "Неправильный шаг анкеты.");
@@ -140,35 +133,6 @@ public class MyBot extends TelegramLongPollingBot {
             }
         }
     }
-
-
-
-
-//    private void registerUser(Update update) {
-//        String msg=update.getMessage().getText();
-//        long chatId=update.getMessage().getChatId();
-//        if (userRepository.findById(chatId).isEmpty()) {
-//
-//            User user = new User();
-//            user.setChatId(chatId);
-//            sendMessage(chatId, "Добро пожаловать! Пожалуйста, заполните анкету.");
-//            sendMessage(chatId, "Введите ваш пол:");
-//            user.setGender(msg);
-//            sendMessage(chatId, "Введите ваш возраст:");
-//            user.setAge(Integer.parseInt(msg));
-//            sendMessage(chatId, "Введите ваш город:");
-//            user.setCity(msg);
-//            sendMessage(chatId, "Введите имя:");
-//            user.setName(msg);
-//            sendMessage(chatId, "Введите описание:");
-//            user.setDescription(msg);
-//            userRepository.save(user);
-//
-//
-//
-//
-//        }
-//    }
 
 
 }
