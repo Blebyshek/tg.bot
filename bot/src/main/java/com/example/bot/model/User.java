@@ -13,6 +13,13 @@ public class User {
     private Integer age;
     private String city;
     private String description;
+    private String state; // поле для хранения состояния анкеты
+    public String getState() {
+        return state;
+    }
+    public void setState(String state) {
+        this.state = state;
+    }
 
     public Long getChatId() {
         return chatId;
