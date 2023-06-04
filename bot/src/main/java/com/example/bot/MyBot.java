@@ -93,7 +93,10 @@ public class MyBot extends TelegramLongPollingBot {
 
             sendMessage(chatId, "Привет! Давай заполним анкету. Как тебя зовут?");
         } else {
+            user.setState(UserState.MENU); // Устанавливаем состояние в MENU
+            userRepository.save(user);
             sendMessage(chatId, "У вас уже есть анкета!");
+            showProfile(chatId, user);
         }
     }
 
@@ -103,65 +106,88 @@ public class MyBot extends TelegramLongPollingBot {
         if (user != null) {
             UserState state = user.getState();
 
-            switch (state) {
-                case NAME:
-                    user.setName(text);
-                    user.setState(UserState.GENDER);
-                    userRepository.save(user);
-                    sendMessage(chatId, "Какой у тебя пол? (Мужской/Женский)");
-                    break;
-                case GENDER:
-                    if (text.equals("Мужской") || text.equals("Женский")) {
-                        user.setGender(text);
-                        user.setState(UserState.AGE);
+            if (state == UserState.MENU) {
+                // Обработка команд из меню
+                switch (text) {
+                    case "1":
+                        // Редактировать анкету
+                        user.setState(UserState.NAME);
                         userRepository.save(user);
-                        sendMessage(chatId, "Сколько тебе лет?");
-                    } else {
-                        sendMessage(chatId, "Некорректное значение пола. Пожалуйста, введите 'Мужской' или 'Женский'.");
-                        sendMessage(chatId, "Какой у тебя пол? (Мужской/Женский)");
-                    }
-                    break;
-                case AGE:
-                    try {
-                        int age = Integer.parseInt(text);
-                        user.setAge(age);
-                        user.setState(UserState.CITY);
+                        sendMessage(chatId, "Редактируйте анкету. Как вас зовут?");
+                        break;
+                    case "2":
+                        // Смотреть анкеты
+                        // Реализация логики для просмотра анкет
+                        break;
+                    default:
+                        sendMessage(chatId, "Некорректная команда. Пожалуйста, выберите команду из меню.");
+                        break;
+                }
+            } else {
+                // Обработка заполнения анкеты
+                switch (state) {
+                    case NAME:
+                        user.setName(text);
+                        user.setState(UserState.GENDER);
                         userRepository.save(user);
-                        sendMessage(chatId, "В каком городе ты живешь?");
-                    } catch (NumberFormatException e) {
-                        sendMessage(chatId, "Некорректное значение возраста. Пожалуйста, введите целое число для возраста.");
-                        sendMessage(chatId, "Сколько тебе лет?");
-                    }
-                    break;
-                case CITY:
-                    user.setCity(text);
-                    user.setState(UserState.DESCRIPTION);
-                    userRepository.save(user);
-                    sendMessage(chatId, "Расскажи немного о себе");
-                    break;
-                case DESCRIPTION:
-                    if (text.length() <= 100) {
-                        user.setDescription(text);
-                        user.setState(UserState.COMPLETED);
+                        sendMessage(chatId, "Какой у вас пол? (Мужской/Женский)");
+                        break;
+                    case GENDER:
+                        if (text.equalsIgnoreCase("Мужской") || text.equalsIgnoreCase("Женский")) {
+                            user.setGender(text);
+                            user.setState(UserState.AGE);
+                            userRepository.save(user);
+                            sendMessage(chatId, "Укажите ваш возраст.");
+                        } else {
+                            sendMessage(chatId, "Некорректное значение пола. Пожалуйста, введите 'Мужской' или 'Женский'.");
+                            sendMessage(chatId, "Какой у вас пол? (Мужской/Женский)");
+                        }
+                        break;
+                    case AGE:
+                        try {
+                            int age = Integer.parseInt(text);
+                            user.setAge(age);
+                            user.setState(UserState.CITY);
+                            userRepository.save(user);
+                            sendMessage(chatId, "В каком городе вы живете?");
+                        } catch (NumberFormatException e) {
+                            sendMessage(chatId, "Некорректное значение возраста. Пожалуйста, введите целое число для возраста.");
+                            sendMessage(chatId, "Укажите ваш возраст.");
+                        }
+                        break;
+                    case CITY:
+                        user.setCity(text);
+                        user.setState(UserState.DESCRIPTION);
                         userRepository.save(user);
-                        sendMessage(chatId, "Анкета успешно заполнена!");
-                        showProfile(chatId, user);
-                    } else {
-                        sendMessage(chatId, "Максимальная длина описания - 100 символов. Пожалуйста, введите описание, которое не превышает 100 символов.");
-                        sendMessage(chatId, "Расскажи немного о себе");
-                    }
-                    break;
-                case COMPLETED:
-                    sendMessage(chatId, "Вы уже заполнили анкету.");
-                    break;
-                default:
-                    sendMessage(chatId, "Неправильный шаг анкеты.");
-                    break;
+                        sendMessage(chatId, "Расскажите немного о себе.");
+                        break;
+                    case DESCRIPTION:
+                        if (text.length() <= 100) {
+                            user.setDescription(text);
+                            user.setState(UserState.MENU); // Переход в состояние меню после заполнения анкеты
+                            userRepository.save(user);
+                            sendMessage(chatId, "Анкета успешно заполнена!");
+                            showProfile(chatId, user);
+
+                        }else {
+                            sendMessage(chatId, "Максимальная длина описания - 100 символов. Пожалуйста, введите описание, которое не превышает 100 символов.");
+                            sendMessage(chatId, "Расскажите немного о себе.");
+                        }
+                        break;
+                    case COMPLETED:
+                        sendMessage(chatId, "Вы уже заполнили анкету.");
+                        break;
+                    default:
+                        sendMessage(chatId, "Неправильный шаг анкеты.");
+                        break;
+                }
             }
         } else {
             sendMessage(chatId, "Для начала запустите бота с командой /start.");
         }
     }
+
+
 
     private void showProfile(long chatId, User user) {
 
