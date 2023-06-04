@@ -13,11 +13,12 @@ public class User {
     private Integer age;
     private String city;
     private String description;
-    private String state; // поле для хранения состояния анкеты
-    public String getState() {
+    private UserState state; // поле для хранения состояния анкеты
+    public UserState getState() {
         return state;
     }
-    public void setState(String state) {
+
+    public void setState(UserState state) {
         this.state = state;
     }
 

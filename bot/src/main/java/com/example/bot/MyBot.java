@@ -3,6 +3,7 @@ package com.example.bot;
 import com.example.bot.config.BotConfig;
 import com.example.bot.model.User;
 import com.example.bot.model.UserRepository;
+import com.example.bot.model.UserState;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -87,7 +88,7 @@ public class MyBot extends TelegramLongPollingBot {
             // Создаем новую анкету
             User newUser = new User();
             newUser.setChatId(chatId);
-            newUser.setState("name");
+            newUser.setState(UserState.NAME);
             userRepository.save(newUser);
 
             sendMessage(chatId, "Привет! Давай заполним анкету. Как тебя зовут?");
@@ -100,19 +101,19 @@ public class MyBot extends TelegramLongPollingBot {
         User user = userRepository.findById(chatId).orElse(null);
 
         if (user != null) {
-            String state = user.getState();
+            UserState state = user.getState();
 
             switch (state) {
-                case "name":
+                case NAME:
                     user.setName(text);
-                    user.setState("gender");
+                    user.setState(UserState.GENDER);
                     userRepository.save(user);
                     sendMessage(chatId, "Какой у тебя пол? (Мужской/Женский)");
                     break;
-                case "gender":
+                case GENDER:
                     if (text.equals("Мужской") || text.equals("Женский")) {
                         user.setGender(text);
-                        user.setState("age");
+                        user.setState(UserState.AGE);
                         userRepository.save(user);
                         sendMessage(chatId, "Сколько тебе лет?");
                     } else {
@@ -120,13 +121,11 @@ public class MyBot extends TelegramLongPollingBot {
                         sendMessage(chatId, "Какой у тебя пол? (Мужской/Женский)");
                     }
                     break;
-
-                case "age":
-                    int age;
+                case AGE:
                     try {
-                        age = Integer.parseInt(text);
+                        int age = Integer.parseInt(text);
                         user.setAge(age);
-                        user.setState("city");
+                        user.setState(UserState.CITY);
                         userRepository.save(user);
                         sendMessage(chatId, "В каком городе ты живешь?");
                     } catch (NumberFormatException e) {
@@ -134,17 +133,16 @@ public class MyBot extends TelegramLongPollingBot {
                         sendMessage(chatId, "Сколько тебе лет?");
                     }
                     break;
-
-                case "city":
+                case CITY:
                     user.setCity(text);
-                    user.setState("description");
+                    user.setState(UserState.DESCRIPTION);
                     userRepository.save(user);
                     sendMessage(chatId, "Расскажи немного о себе");
                     break;
-                case "description":
+                case DESCRIPTION:
                     if (text.length() <= 100) {
                         user.setDescription(text);
-                        user.setState("complete");
+                        user.setState(UserState.COMPLETED);
                         userRepository.save(user);
                         sendMessage(chatId, "Анкета успешно заполнена!");
                         showProfile(chatId, user);
@@ -153,7 +151,7 @@ public class MyBot extends TelegramLongPollingBot {
                         sendMessage(chatId, "Расскажи немного о себе");
                     }
                     break;
-                case "complete":
+                case COMPLETED:
                     sendMessage(chatId, "Вы уже заполнили анкету.");
                     break;
                 default:
