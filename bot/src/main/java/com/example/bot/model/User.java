@@ -14,6 +14,16 @@ public class User {
     private String city;
     private String description;
     private UserState state; // поле для хранения состояния анкеты
+    private Integer currentIndex;
+
+    public Integer getCurrentIndex() {
+        return currentIndex;
+    }
+
+    public void setCurrentIndex(Integer currentIndex) {
+        this.currentIndex = currentIndex;
+    }
+
     public UserState getState() {
         return state;
     }

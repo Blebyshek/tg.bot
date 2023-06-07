@@ -8,6 +8,7 @@ public enum UserState {
     CITY,
     DESCRIPTION,
     COMPLETED,
-    MENU
+    MENU,
+    VIEW
 
 }

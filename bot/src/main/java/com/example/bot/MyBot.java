@@ -117,12 +117,15 @@ public class MyBot extends TelegramLongPollingBot {
                         break;
                     case "2":
                         // Смотреть анкеты
-                        // Реализация логики для просмотра анкет
+                        showOtherUsers(chatId);
                         break;
                     default:
                         sendMessage(chatId, "Некорректная команда. Пожалуйста, выберите команду из меню.");
+                        sendMessage(chatId,"Меню:\n1) Редактировать анкету\n2) Смотреть анкеты");
                         break;
                 }
+            } else if (state== UserState.VIEW) {
+                showOtherUsers(chatId);
             } else {
                 // Обработка заполнения анкеты
                 switch (state) {
@@ -195,6 +198,53 @@ public class MyBot extends TelegramLongPollingBot {
 "\nОписание: " + user.getDescription());
         sendMessage(chatId,"Меню:\n1) Редактировать анкету\n2) Смотреть анкеты");
     }
+
+    private void showOtherUsers(long chatId) {
+        List<User> otherUsers = (List<User>) userRepository.findAll();
+
+        User user = userRepository.findById(chatId).orElse(null);
+        int currentIndex = 0;
+
+        if (user != null && user.getState() == UserState.VIEW) {
+            currentIndex = user.getCurrentIndex();
+        } else {
+            // Новое состояние пользователя
+            User newUser = new User();
+            newUser.setChatId(chatId);
+            newUser.setState(UserState.VIEW);
+            userRepository.save(newUser);
+            user = newUser;
+        }
+
+        int totalUsers = otherUsers.size();
+        if (currentIndex < totalUsers) {
+            User nextUser = otherUsers.get(currentIndex);
+            StringBuilder message = new StringBuilder();
+            message.append("Анкета пользователя ").append(currentIndex + 1).append(" из ").append(totalUsers).append(":\n");
+            message.append("Имя: ").append(nextUser.getName()).append("\n");
+            message.append("Пол: ").append(nextUser.getGender()).append("\n");
+            message.append("Город: ").append(nextUser.getCity()).append("\n");
+            message.append("Описание: ").append(nextUser.getDescription()).append("\n\n");
+
+            // Отправляем анкету пользователю
+            sendMessage(chatId, message.toString());
+
+            // Увеличиваем индекс анкеты пользователя
+            currentIndex = currentIndex + 1;
+            user.setCurrentIndex(currentIndex);
+            userRepository.save(user);
+        } else {
+            // Все анкеты просмотрены
+            sendMessage(chatId, "Все анкеты просмотрены.");
+            user.setState(UserState.MENU);
+            userRepository.save(user);
+        }
+    }
+
+
+
+
+
 
 
 }
