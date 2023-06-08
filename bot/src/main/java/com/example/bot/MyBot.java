@@ -4,6 +4,7 @@ import com.example.bot.config.BotConfig;
 import com.example.bot.model.User;
 import com.example.bot.model.UserRepository;
 import com.example.bot.model.UserState;
+import com.vdurmont.emoji.EmojiParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
@@ -12,7 +13,6 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
@@ -42,29 +42,15 @@ public class MyBot extends TelegramLongPollingBot {
         return config.getToken();
     }
 
-    private void sendMessage(long chatId, Object message) {
-        List<String> existingMessages = new ArrayList<>();
-
-        // Обрабатываем аргумент message
-        if (message instanceof String) {
-            existingMessages.add((String) message);
-        } else if (message instanceof List) {
-            existingMessages.addAll((List<String>) message);
+    private void sendMessage(long chatId, String textToSend) {
+        SendMessage message=new SendMessage();
+        message.setChatId(String.valueOf(chatId));
+        message.setText(EmojiParser.parseToUnicode(textToSend)); //поддержка смайликов
+        try {
+            execute(message);
+        } catch (TelegramApiException e){
+            e.printStackTrace();
         }
-
-        // Отправляем все сообщения
-        for (String textToSend : existingMessages) {
-            SendMessage sendMessage = new SendMessage();
-            sendMessage.setChatId(String.valueOf(chatId));
-            sendMessage.setText(textToSend);
-
-            try {
-                execute(sendMessage);
-            } catch (TelegramApiException e) {
-                e.printStackTrace();
-            }
-        }
-
 
     }
 
