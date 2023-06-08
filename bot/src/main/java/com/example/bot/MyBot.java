@@ -14,6 +14,9 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 @Component
 public class MyBot extends TelegramLongPollingBot {
@@ -25,7 +28,7 @@ public class MyBot extends TelegramLongPollingBot {
     @Autowired
     public MyBot(BotConfig config, UserRepository userRepository) {
         this.config = config;
-        this.userRepository=userRepository;
+        this.userRepository = userRepository;
 
     }
 
@@ -121,10 +124,10 @@ public class MyBot extends TelegramLongPollingBot {
                         break;
                     default:
                         sendMessage(chatId, "Некорректная команда. Пожалуйста, выберите команду из меню.");
-                        sendMessage(chatId,"Меню:\n1) Редактировать анкету\n2) Смотреть анкеты");
+                        sendMessage(chatId, "Меню:\n1) Редактировать анкету\n2) Смотреть анкеты");
                         break;
                 }
-            } else if (state== UserState.VIEW) {
+            } else if (state == UserState.VIEW) {
                 showOtherUsers(chatId);
             } else {
                 // Обработка заполнения анкеты
@@ -172,7 +175,7 @@ public class MyBot extends TelegramLongPollingBot {
                             sendMessage(chatId, "Анкета успешно заполнена!");
                             showProfile(chatId, user);
 
-                        }else {
+                        } else {
                             sendMessage(chatId, "Максимальная длина описания - 100 символов. Пожалуйста, введите описание, которое не превышает 100 символов.");
                             sendMessage(chatId, "Расскажите немного о себе.");
                         }
@@ -191,29 +194,30 @@ public class MyBot extends TelegramLongPollingBot {
     }
 
 
-
     private void showProfile(long chatId, User user) {
 
-        sendMessage(chatId, "Ваша анкета:\nИмя: " + user.getName() + "\nПол: " + user.getGender()+"\nВозраст: " + user.getAge()+"\nГород: " + user.getCity()+
-"\nОписание: " + user.getDescription());
-        sendMessage(chatId,"Меню:\n1) Редактировать анкету\n2) Смотреть анкеты");
+        sendMessage(chatId, "Ваша анкета:\nИмя: " + user.getName() + "\nПол: " + user.getGender() + "\nВозраст: " + user.getAge() + "\nГород: " + user.getCity() +
+                "\nОписание: " + user.getDescription());
+        sendMessage(chatId, "Меню:\n1) Редактировать анкету\n2) Смотреть анкеты");
     }
 
     private void showOtherUsers(long chatId) {
-        List<User> otherUsers = (List<User>) userRepository.findAll();
+        List<User> otherUsers = StreamSupport.stream(userRepository.findAll().spliterator(), false)
+                .collect(Collectors.toList()); //извлекает всех пользователей из репозитория.
 
-        User user = userRepository.findById(chatId).orElse(null);
+
+
+
+        User user = userRepository.findById(chatId).orElseThrow(() -> new NoSuchElementException("Пользователь не найден"));
         int currentIndex = 0;
 
         if (user != null && user.getState() == UserState.VIEW) {
             currentIndex = user.getCurrentIndex();
         } else {
             // Новое состояние пользователя
-            User newUser = new User();
-            newUser.setChatId(chatId);
-            newUser.setState(UserState.VIEW);
-            userRepository.save(newUser);
-            user = newUser;
+           user.setState(UserState.VIEW);
+            userRepository.save(user);
+           
         }
 
         int totalUsers = otherUsers.size();
@@ -240,11 +244,6 @@ public class MyBot extends TelegramLongPollingBot {
             userRepository.save(user);
         }
     }
-
-
-
-
-
 
 
 }
