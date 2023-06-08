@@ -9,14 +9,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.util.List;
-import java.util.NoSuchElementException;
-import java.util.stream.Collectors;
-import java.util.stream.StreamSupport;
 
 @Component
 public class MyBot extends TelegramLongPollingBot {
@@ -43,12 +39,12 @@ public class MyBot extends TelegramLongPollingBot {
     }
 
     private void sendMessage(long chatId, String textToSend) {
-        SendMessage message=new SendMessage();
+        SendMessage message = new SendMessage();
         message.setChatId(String.valueOf(chatId));
         message.setText(EmojiParser.parseToUnicode(textToSend)); //поддержка смайликов
         try {
             execute(message);
-        } catch (TelegramApiException e){
+        } catch (TelegramApiException e) {
             e.printStackTrace();
         }
 
@@ -58,152 +54,138 @@ public class MyBot extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
-            Message message = update.getMessage();
-            long chatId = message.getChatId();
-            String text = message.getText();
+            long chatId = update.getMessage().getChatId();
+            String messageText = update.getMessage().getText();
+            User user = userRepository.findById(chatId).orElse(null);
 
-            if ("/start".equals(text)) {
-                processStartCommand(chatId);
-            } else {
-                processQuestionnaire(chatId, text);
-            }
-        }
-    }
+            switch (messageText) {
 
-    private void processStartCommand(long chatId) {
-        User user = userRepository.findById(chatId).orElse(null);
+                case "/start" -> {
+                    if (user == null) {
+                        // Создаем новую анкету
+                        User newUser = new User();
+                        newUser.setChatId(chatId);
+                        newUser.setState(UserState.NAME);
+                        userRepository.save(newUser);
 
-        if (user == null) {
-            // Создаем новую анкету
-            User newUser = new User();
-            newUser.setChatId(chatId);
-            newUser.setState(UserState.NAME);
-            userRepository.save(newUser);
-
-            sendMessage(chatId, "Привет! Давай заполним анкету. Как тебя зовут?");
-        } else {
-            user.setState(UserState.MENU); // Устанавливаем состояние в MENU
-            userRepository.save(user);
-            sendMessage(chatId, "У вас уже есть анкета!");
-            showProfile(chatId, user);
-        }
-    }
-
-    private void processQuestionnaire(long chatId, String text) {
-        User user = userRepository.findById(chatId).orElse(null);
-
-        if (user != null) {
-            UserState state = user.getState();
-
-            if (state == UserState.MENU) {
-                // Обработка команд из меню
-                switch (text) {
-                    case "1":
-                        // Редактировать анкету
-                        user.setState(UserState.NAME);
+                        sendMessage(chatId, "Привет! Давай заполним анкету. Как тебя зовут?");
+                    } else {
+                        user.setState(UserState.MENU); // Устанавливаем состояние в MENU
                         userRepository.save(user);
-                        sendMessage(chatId, "Редактируйте анкету. Как вас зовут?");
-                        break;
-                    case "2":
-                        // Смотреть анкеты
-                        showOtherUsers(chatId);
-                        break;
-                    default:
-                        sendMessage(chatId, "Некорректная команда. Пожалуйста, выберите команду из меню.");
-                        sendMessage(chatId, "Меню:\n1) Редактировать анкету\n2) Смотреть анкеты");
-                        break;
+                        sendMessage(chatId, "У вас уже есть анкета!");
+                        showProfile(chatId, user);
+                    }
+                    break;
                 }
-            } else if (state == UserState.VIEW) {
-                showOtherUsers(chatId);
-            } else {
-                // Обработка заполнения анкеты
-                switch (state) {
-                    case NAME:
-                        user.setName(text);
-                        user.setState(UserState.GENDER);
-                        userRepository.save(user);
-                        sendMessage(chatId, "Какой у вас пол? (Мужской/Женский)");
-                        break;
-                    case GENDER:
-                        if (text.equalsIgnoreCase("Мужской") || text.equalsIgnoreCase("Женский")) {
-                            user.setGender(text);
-                            user.setState(UserState.AGE);
-                            userRepository.save(user);
-                            sendMessage(chatId, "Укажите ваш возраст.");
-                        } else {
-                            sendMessage(chatId, "Некорректное значение пола. Пожалуйста, введите 'Мужской' или 'Женский'.");
-                            sendMessage(chatId, "Какой у вас пол? (Мужской/Женский)");
-                        }
-                        break;
-                    case AGE:
-                        try {
-                            int age = Integer.parseInt(text);
-                            user.setAge(age);
-                            user.setState(UserState.CITY);
-                            userRepository.save(user);
-                            sendMessage(chatId, "В каком городе вы живете?");
-                        } catch (NumberFormatException e) {
-                            sendMessage(chatId, "Некорректное значение возраста. Пожалуйста, введите целое число для возраста.");
-                            sendMessage(chatId, "Укажите ваш возраст.");
-                        }
-                        break;
-                    case CITY:
-                        user.setCity(text);
-                        user.setState(UserState.DESCRIPTION);
-                        userRepository.save(user);
-                        sendMessage(chatId, "Расскажите немного о себе.");
-                        break;
-                    case DESCRIPTION:
-                        if (text.length() <= 100) {
-                            user.setDescription(text);
-                            user.setState(UserState.MENU); // Переход в состояние меню после заполнения анкеты
-                            userRepository.save(user);
-                            sendMessage(chatId, "Анкета успешно заполнена!");
-                            showProfile(chatId, user);
+                default -> {
 
-                        } else {
-                            sendMessage(chatId, "Максимальная длина описания - 100 символов. Пожалуйста, введите описание, которое не превышает 100 символов.");
-                            sendMessage(chatId, "Расскажите немного о себе.");
+                    if (user != null) {
+                        UserState state = user.getState();
+
+                        // Обработка состояния пользователя
+                        switch (state) {
+                            case NAME:
+                                user.setName(messageText);
+                                user.setState(UserState.GENDER);
+                                userRepository.save(user);
+                                sendMessage(chatId, "Какой у вас пол? (Мужской/Женский)");
+                                break;
+                            case GENDER:
+                                if (messageText.equalsIgnoreCase("Мужской") || messageText.equalsIgnoreCase("Женский")) {
+                                    user.setGender(messageText);
+                                    user.setState(UserState.AGE);
+                                    userRepository.save(user);
+                                    sendMessage(chatId, "Укажите ваш возраст.");
+                                } else {
+                                    sendMessage(chatId, "Некорректное значение пола. Пожалуйста, введите 'Мужской' или 'Женский'.");
+                                    return;
+                                }
+                                break;
+                            case AGE:
+                                try {
+                                    int age = Integer.parseInt(messageText);
+                                    user.setAge(age);
+                                    user.setState(UserState.CITY);
+                                    userRepository.save(user);
+                                    sendMessage(chatId, "В каком городе вы живете?");
+                                } catch (NumberFormatException e) {
+                                    sendMessage(chatId, "Некорректное значение возраста. Пожалуйста, введите целое число для возраста.");
+                                    return;
+                                }
+                                break;
+                            case CITY:
+                                user.setCity(messageText);
+                                user.setState(UserState.DESCRIPTION);
+                                userRepository.save(user);
+                                sendMessage(chatId, "Расскажите немного о себе.");
+                                break;
+                            case DESCRIPTION:
+                                if (messageText.length() <= 100) {
+                                    user.setDescription(messageText);
+                                    user.setState(UserState.MENU); // Переход в состояние меню после заполнения анкеты
+                                    userRepository.save(user);
+                                    sendMessage(chatId, "Анкета успешно заполнена!");
+                                    showProfile(chatId, user);
+
+                                } else {
+                                    sendMessage(chatId, "Максимальная длина описания - 100 символов. Пожалуйста, введите описание, которое не превышает 100 символов.");
+                                    sendMessage(chatId, "Расскажите немного о себе.");
+                                }
+                                break;
+                            case COMPLETED:
+                                sendMessage(chatId, "Вы уже заполнили анкету.");
+                                break;
+                            case MENU:
+                                switch (messageText) {
+                                    case "1":
+                                        // Редактировать анкету
+                                        user.setState(UserState.NAME);
+                                        userRepository.save(user);
+                                        sendMessage(chatId, "Редактируйте анкету. Как вас зовут?");
+                                        break;
+                                    case "2":
+                                        // Смотреть анкеты
+                                        showOtherUsers(chatId);
+
+                                        break;
+                                    default:
+                                        sendMessage(chatId, "Некорректная команда. Пожалуйста, выберите команду из меню.");
+                                        sendMessage(chatId, "Меню:\n1) Редактировать анкету\n2) Смотреть анкеты");
+                                        break;
+                                }
+                                break;
+                            case VIEW:
+                                showOtherUsers(chatId);
+                                break;
                         }
-                        break;
-                    case COMPLETED:
-                        sendMessage(chatId, "Вы уже заполнили анкету.");
-                        break;
-                    default:
-                        sendMessage(chatId, "Неправильный шаг анкеты.");
-                        break;
+                    } else {
+                        sendMessage(chatId,"Анкета еще не создана введите /start");
+
+                    }
+
+
                 }
             }
-        } else {
-            sendMessage(chatId, "Для начала запустите бота с командой /start.");
+
         }
-    }
 
 
-    private void showProfile(long chatId, User user) {
-
-        sendMessage(chatId, "Ваша анкета:\nИмя: " + user.getName() + "\nПол: " + user.getGender() + "\nВозраст: " + user.getAge() + "\nГород: " + user.getCity() +
-                "\nОписание: " + user.getDescription());
-        sendMessage(chatId, "Меню:\n1) Редактировать анкету\n2) Смотреть анкеты");
     }
 
     private void showOtherUsers(long chatId) {
-        List<User> otherUsers = StreamSupport.stream(userRepository.findAll().spliterator(), false)
-                .collect(Collectors.toList()); //извлекает всех пользователей из репозитория.
+        List<User> otherUsers = (List<User>) userRepository.findAll();; //извлекает всех пользователей из репозитория.
 
+        User user = userRepository.findById(chatId).orElse(null);
 
-
-
-        User user = userRepository.findById(chatId).orElseThrow(() -> new NoSuchElementException("Пользователь не найден"));
         int currentIndex = 0;
 
         if (user != null && user.getState() == UserState.VIEW) {
             currentIndex = user.getCurrentIndex();
         } else {
             // Новое состояние пользователя
-           user.setState(UserState.VIEW);
+            user.setState(UserState.VIEW);
             userRepository.save(user);
-           
+
         }
 
         int totalUsers = otherUsers.size();
@@ -230,6 +212,16 @@ public class MyBot extends TelegramLongPollingBot {
             userRepository.save(user);
         }
     }
+
+
+    private void showProfile(long chatId, User user) {
+
+        sendMessage(chatId, "Ваша анкета:\nИмя: " + user.getName() + "\nПол: " + user.getGender() + "\nВозраст: " + user.getAge() + "\nГород: " + user.getCity() +
+                "\nОписание: " + user.getDescription());
+        sendMessage(chatId, "Меню:\n1) Редактировать анкету\n2) Смотреть анкеты");
+    }
+
+
 
 
 }

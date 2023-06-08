@@ -16,6 +16,8 @@ public class User {
     private UserState state; // поле для хранения состояния анкеты
     private Integer currentIndex;
 
+
+
     public Integer getCurrentIndex() {
         return currentIndex;
     }

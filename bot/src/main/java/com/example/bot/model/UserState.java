@@ -2,6 +2,7 @@ package com.example.bot.model;
 
 public enum UserState {
 
+
     NAME,
     GENDER,
     AGE,
