@@ -191,10 +191,12 @@ public class MyBot extends TelegramLongPollingBot {
         }
 
         int totalUsers = otherUsers.size();
-        if (currentIndex < totalUsers) {
-            User nextUser = otherUsers.get(currentIndex);
+        User nextUser = otherUsers.get(currentIndex);
+        if (currentIndex < totalUsers && !nextUser.getChatId().equals(chatId)) {
+
+
             StringBuilder message = new StringBuilder();
-            message.append("Анкета пользователя ").append(currentIndex + 1).append(" из ").append(totalUsers).append(":\n");
+            message.append("Анкета пользователя ").append(":\n");
             message.append("Имя: ").append(nextUser.getName()).append("\n");
             message.append("Пол: ").append(nextUser.getGender()).append("\n");
             message.append("Город: ").append(nextUser.getCity()).append("\n");
