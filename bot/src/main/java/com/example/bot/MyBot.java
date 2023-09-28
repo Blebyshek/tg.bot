@@ -146,11 +146,13 @@ public class MyBot extends TelegramLongPollingBot {
                                     case "2":
                                         // Смотреть анкеты
                                         showOtherUsers(chatId);
-
+                                        break;
+                                    case "3":
+                                        showProfile(chatId, user);
                                         break;
                                     default:
                                         sendMessage(chatId, "Некорректная команда. Пожалуйста, выберите команду из меню.");
-                                        sendMessage(chatId, "Меню:\n1) Редактировать анкету\n2) Смотреть анкеты");
+                                        sendMessage(chatId, "Меню:\n1) Редактировать анкету\n2) Смотреть анкеты\n3)Моя анкета");
                                         break;
                                 }
                                 break;
@@ -218,7 +220,7 @@ public class MyBot extends TelegramLongPollingBot {
 
         sendMessage(chatId, "Ваша анкета:\nИмя: " + user.getName() + "\nПол: " + user.getGender() + "\nВозраст: " + user.getAge() + "\nГород: " + user.getCity() +
                 "\nОписание: " + user.getDescription());
-        sendMessage(chatId, "Меню:\n1) Редактировать анкету\n2) Смотреть анкеты");
+        sendMessage(chatId, "Меню:\n1) Редактировать анкету\n2) Смотреть анкеты\n3)Моя анкета");
     }
 
 
