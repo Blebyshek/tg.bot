@@ -157,7 +157,27 @@ public class MyBot extends TelegramLongPollingBot {
                                 }
                                 break;
                             case VIEW:
-                                showOtherUsers(chatId);
+                                switch (messageText) {
+                                    case "like":
+
+                                        sendMessage(chatId, "Лайк отправлен ждем ответа");
+                                        showOtherUsers(chatId);
+
+                                        break;
+                                    case "dislike":
+                                        showOtherUsers(chatId);
+
+                                        break;
+                                    case "stop":
+                                        user.setState(UserState.MENU);
+                                        userRepository.save(user);
+                                        break;
+                                    default:
+                                        sendMessage(chatId, "Некорректная команда.");
+
+                                        break;
+                                }
+
                                 break;
                         }
                     } else {
@@ -181,7 +201,7 @@ public class MyBot extends TelegramLongPollingBot {
 
         int currentIndex = 0;
 
-        if (user != null && user.getState() == UserState.VIEW) {
+        if (user.getState() == UserState.VIEW) {
             currentIndex = user.getCurrentIndex();
         } else {
             // Новое состояние пользователя
@@ -208,6 +228,7 @@ public class MyBot extends TelegramLongPollingBot {
             // Увеличиваем индекс анкеты пользователя
             currentIndex = currentIndex + 1;
             user.setCurrentIndex(currentIndex);
+            user.setState(UserState.VIEW);
             userRepository.save(user);
         } else {
             // Все анкеты просмотрены
