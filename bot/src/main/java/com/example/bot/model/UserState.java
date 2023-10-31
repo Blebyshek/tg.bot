@@ -10,6 +10,8 @@ public enum UserState {
     DESCRIPTION,
     COMPLETED,
     MENU,
-    VIEW
+    VIEW,
+    LIKED,
+    RECIPROCITY
 
 }
