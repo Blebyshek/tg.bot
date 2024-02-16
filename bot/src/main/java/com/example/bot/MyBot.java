@@ -16,9 +16,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 @Component
 public class MyBot extends TelegramLongPollingBot {
@@ -86,7 +84,7 @@ public class MyBot extends TelegramLongPollingBot {
 
 
             if ("/start".equals(messageText)) {
-                if (user == null || user.getName()==null || user.getAge()==null || user.getCity()==null || user.getDescription()==null || user.getGender()==null ) {
+                if (user == null || user.getName()==null || user.getAge()==null || user.getFaculty()==null || user.getDescription()==null || user.getPurpose()==null ) {
                     // Создаем новую анкету
                     User newUser = new User();
                     newUser.setChatId(chatId);
@@ -109,31 +107,31 @@ public class MyBot extends TelegramLongPollingBot {
                         case NAME:
                             user.setName(messageText);
                             user.setNickname(update.getMessage().getFrom().getUserName());
-                            user.setState(UserState.GENDER);
+                            user.setState(UserState.PURPOSE);
                             userRepository.save(user);
 
-                            ReplyKeyboardMarkup genderKeyboard = new ReplyKeyboardMarkup();
-                            genderKeyboard.setOneTimeKeyboard(true);
-                            genderKeyboard.setResizeKeyboard(true);
-                            List<KeyboardRow> genderRows=new ArrayList<>();
+                            ReplyKeyboardMarkup purposeKeyboard = new ReplyKeyboardMarkup();
+                            purposeKeyboard.setOneTimeKeyboard(true);
+                            purposeKeyboard.setResizeKeyboard(true);
+                            List<KeyboardRow> purposeRows=new ArrayList<>();
 
-                            KeyboardRow genderRow = new KeyboardRow();
-                            genderRow.add(new KeyboardButton("Мужской"));
-                            genderRow.add(new KeyboardButton("Женский"));
-                            genderRows.add(genderRow);
-                            genderKeyboard.setKeyboard(genderRows);
+                            KeyboardRow purposeRow = new KeyboardRow();
+                            purposeRow.add(new KeyboardButton("Помощь по учебе"));
+                            purposeRow.add(new KeyboardButton("Поиск друзей"));
+                            purposeRows.add(purposeRow);
+                            purposeKeyboard.setKeyboard(purposeRows);
 
-                            sendMessage(chatId, "Какой у вас пол? (Мужской/Женский)", genderKeyboard);
+                            sendMessage(chatId, "Цель поиска? (Помощь по учебе/Поиск друзей)", purposeKeyboard);
                             break;
-                        case GENDER:
+                        case PURPOSE:
 
-                            if (messageText.equalsIgnoreCase("Мужской") || messageText.equalsIgnoreCase("Женский")) {
-                                user.setGender(messageText);
+                            if (messageText.equalsIgnoreCase("Поиск друзей") || messageText.equalsIgnoreCase("Помощь по учебе")) {
+                                user.setPurpose(messageText);
                                 user.setState(UserState.AGE);
                                 userRepository.save(user);
                                 sendMessage(chatId, "Укажите ваш возраст.");
                             } else {
-                                sendMessage(chatId, "Некорректное значение пола. Пожалуйста, введите 'Мужской' или 'Женский'.");
+                                sendMessage(chatId, "Некорректное значение.");
                                 return;
                             }
                             break;
@@ -141,19 +139,28 @@ public class MyBot extends TelegramLongPollingBot {
                             try {
                                 int age = Integer.parseInt(messageText);
                                 user.setAge(age);
-                                user.setState(UserState.CITY);
+                                user.setState(UserState.FACULTY);
                                 userRepository.save(user);
-                                sendMessage(chatId, "В каком городе вы живете?");
+
+                                ReplyKeyboardMarkup facultyKeyboard = showFacultyKeyboard();
+                                sendMessage(chatId, "Ваш факультет", facultyKeyboard);
+
                             } catch (NumberFormatException e) {
-                                sendMessage(chatId, "Некорректное значение возраста. Пожалуйста, введите целое число для возраста.");
+                                sendMessage(chatId, "Некорректное значение возраста. Пожалуйста, введите число.");
                                 return;
                             }
                             break;
-                        case CITY:
-                            user.setCity(messageText);
-                            user.setState(UserState.DESCRIPTION);
-                            userRepository.save(user);
-                            sendMessage(chatId, "Расскажите немного о себе.");
+                        case FACULTY:
+                            String [] validFaculties={"АВТФ", "ФЛА", "МТФ", "ФМА", "ФПМИ", "РЭФ", "ФТФ", "ФЭН", "ФБ", "ФГО", "ИСТ"};
+
+                            if (Arrays.asList(validFaculties).contains(messageText.toUpperCase())) {
+                                user.setFaculty(messageText);
+                                user.setState(UserState.DESCRIPTION);
+                                userRepository.save(user);
+                                sendMessage(chatId, "Расскажите немного о себе.");
+                            } else {
+                                sendMessage(chatId, "Некорректное значение.");
+                            }
                             break;
                         case DESCRIPTION:
                             if (messageText.length() <= 100) {
@@ -237,8 +244,8 @@ public class MyBot extends TelegramLongPollingBot {
                                 {
                                     String message = "Анкета пользователя " + ":\n" +
                                             "Имя: " + userLiked.getName() + "\n"
-                                            + "Пол: " + userLiked.getGender() + "\n"
-                                            + "Город: " + userLiked.getCity() + "\n"
+                                            + "Пол: " + userLiked.getPurpose() + "\n"
+                                            + "Город: " + userLiked.getFaculty() + "\n"
                                             + "Описание: " + userLiked.getDescription() + "\n\n";
                                     sendMessage(chatId, message);
                                     sendMessage(chatId, "Поставить взаимность? (Да/Нет) ");
@@ -293,6 +300,30 @@ public class MyBot extends TelegramLongPollingBot {
             }
         }
     }
+    private ReplyKeyboardMarkup showFacultyKeyboard(){
+        List<String> faculties = Arrays.asList("АВТФ", "ФЛА", "МТФ", "ФМА", "ФПМИ", "РЭФ", "ФТФ", "ФЭН", "ФБ", "ФГО", "ИСТ");
+
+        ReplyKeyboardMarkup facultyKeyboard=new ReplyKeyboardMarkup();
+        facultyKeyboard.setOneTimeKeyboard(true);
+        facultyKeyboard.setResizeKeyboard(true);
+
+        List<KeyboardRow> keyboard =new ArrayList<>();
+        KeyboardRow facultyRow = new KeyboardRow();
+        for (String faculty: faculties){
+            facultyRow.add(new KeyboardButton(faculty));
+                if(facultyRow.size()==3){
+                    keyboard.add(facultyRow);
+                    facultyRow=new KeyboardRow();
+                }
+        }
+        if (!facultyRow.isEmpty()){
+            keyboard.add(facultyRow);
+        }
+
+        facultyKeyboard.setKeyboard(keyboard);
+        return facultyKeyboard;
+    }
+
     private void showMenuKeyboard(long chatId) {
         ReplyKeyboardMarkup menuKeyboard = new ReplyKeyboardMarkup();
         menuKeyboard.setOneTimeKeyboard(true);
@@ -336,8 +367,8 @@ public class MyBot extends TelegramLongPollingBot {
 
             String message = "Анкета пользователя " + viewedUser.getName() + ":\n" +
                     "Имя: " + viewedUser.getName() + "\n" +
-                    "Пол: " + viewedUser.getGender() + "\n" +
-                    "Город: " + viewedUser.getCity() + "\n" +
+                    "Пол: " + viewedUser.getPurpose() + "\n" +
+                    "Город: " + viewedUser.getFaculty() + "\n" +
                     "Описание: " + viewedUser.getDescription() + "\n\n";
 
             // Отправляем анкету пользователю
@@ -363,7 +394,7 @@ public class MyBot extends TelegramLongPollingBot {
 
     private void showProfile(long chatId, User user) {
 
-        sendMessage(chatId, "Ваша анкета:\nИмя: " + user.getName() + "\nПол: " + user.getGender() + "\nВозраст: " + user.getAge() + "\nГород: " + user.getCity() + "\nОписание: " + user.getDescription());
+        sendMessage(chatId, "Ваша анкета:\nИмя: " + user.getName() + "\nПол: " + user.getPurpose() + "\nВозраст: " + user.getAge() + "\nГород: " + user.getFaculty() + "\nОписание: " + user.getDescription());
         showMenuKeyboard(chatId);
     }
 

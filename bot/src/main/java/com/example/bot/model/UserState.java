@@ -4,9 +4,9 @@ public enum UserState {
 
 
     NAME,
-    GENDER,
+    PURPOSE,
     AGE,
-    CITY,
+    FACULTY,
     DESCRIPTION,
     COMPLETED,
     MENU,

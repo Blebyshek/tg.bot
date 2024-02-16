@@ -12,21 +12,20 @@ import java.util.List;
 public class User {
     @Id
     private Long chatId;
-
     private String nickname;
-    private String gender;
+
     private String name;
+    private String purpose;
     private Integer age;
-    private String city;
+    private String faculty;
+
     private String description;
     private UserState state; // поле для хранения состояния анкеты
     private Integer currentIndex;
     private Long likedUserId;
     private Long viewedUserId;
 
-    @ElementCollection
-    @CollectionTable(name = "liked_users", joinColumns = @JoinColumn(name = "chat_id"))
-    private List<Long> likedUserList;
+
 
     public void setLikedUserId(long chatId) {
         this.likedUserId = chatId;
