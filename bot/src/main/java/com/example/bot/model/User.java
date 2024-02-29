@@ -4,7 +4,9 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity(name="usersDataTable")
 @Getter
@@ -24,6 +26,11 @@ public class User {
     private Integer currentIndex;
     private Long likedUserId;
     private Long viewedUserId;
+
+
+
+    @OneToMany(mappedBy = "liked", fetch = FetchType.EAGER, cascade = CascadeType.ALL)
+    private Set<UserLikes> likedBy = new HashSet<>();
 
 
 

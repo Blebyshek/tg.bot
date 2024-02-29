@@ -1,12 +1,11 @@
 package com.example.bot;
 
 import com.example.bot.config.BotConfig;
-import com.example.bot.model.User;
-import com.example.bot.model.UserRepository;
-import com.example.bot.model.UserState;
+import com.example.bot.model.*;
 import com.vdurmont.emoji.EmojiParser;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -24,15 +23,17 @@ public class MyBot extends TelegramLongPollingBot {
     final BotConfig config;
 
     private final UserRepository userRepository;
+    private final UserLikesRepository userLikesRepository;
 
 
 
 
     @Autowired
-    public MyBot(BotConfig config, UserRepository userRepository) {
+    public MyBot(BotConfig config, UserRepository userRepository, UserLikesRepository userLikesRepository) {
         super("6054034146:AAHgKCkrZFpj5V4xlouy2EbVPaYhtTGZo_0");
         this.config = config;
         this.userRepository = userRepository;
+        this.userLikesRepository=userLikesRepository;
 
 
     }
@@ -72,7 +73,10 @@ public class MyBot extends TelegramLongPollingBot {
         }
     }
 
+
+
     @Override
+    @Transactional
     public void onUpdateReceived(Update update) {
         if (update.hasMessage() && update.getMessage().hasText()) {
             long chatId = update.getMessage().getChatId();
@@ -151,7 +155,7 @@ public class MyBot extends TelegramLongPollingBot {
                             }
                             break;
                         case FACULTY:
-                            String [] validFaculties={"АВТФ", "ФЛА", "МТФ", "ФМА", "ФПМИ", "РЭФ", "ФТФ", "ФЭН", "ФБ", "ФГО", "ИСТ"};
+                            String [] validFaculties={"АВТФ", "ФЛА", "МТФ", "ФМА", "ФПМИ", "РЭФ", "ФТФ", "ФЭН", "ФБ", "ФГО", "ИСТ", "ВСЕ"};
 
                             if (Arrays.asList(validFaculties).contains(messageText.toUpperCase())) {
                                 user.setFaculty(messageText);
@@ -203,62 +207,60 @@ public class MyBot extends TelegramLongPollingBot {
                             break;
                         case VIEW:
                             switch (messageText) {
-                                case "like" ->
-                                {
-                                    likedUserId=user.getViewedUserId();
-                                    userLiked = userRepository.findById(likedUserId).orElse(null);
-                                    sendMessage(chatId, "Лайк отправлен, ждем ответа");
-                                    if (userLiked != null) {
-                                        userLiked.setState(UserState.LIKED);
-                                        userLiked.setLikedUserId(chatId); // Устанавливаем chatId текущего пользователя
-                                        userRepository.save(userLiked);
-                                        sendMessage(user.getViewedUserId(), "Ваша анкета кому-то понравилась. Хотите посмотреть? (Да/Нет)");
+
+                                case "like": {
+                                    userLiked = userRepository.findById(user.getViewedUserId()).orElse(null);
+                                    userLiked.setState(UserState.LIKED);
+                                    userRepository.save(userLiked);
+                                    List<UserLikes> likedList = userLikesRepository.findByLikedAndLiker(userLiked, user);
+                                    for (UserLikes userLikes : likedList) {
+                                        userLikes.setBooleanLiker(true);
+                                        userLikes.setBooleanLiked(false);
+                                        userLikesRepository.save(userLikes);
                                     }
-                                    // String userLinkHTML = "<a href=\"tg://user?id="+userLikedChatId+"\">inline mention of a user</a>";
+                                    sendMessage(user.getViewedUserId(), "Ваша анкета кому-то понравилась. Хотите посмотреть? (Да/Нет)");
 
                                     showViewKeyboard(chatId);
                                     showOtherUsers(chatId);
-
+                                    break;
                                 }
-                                case "dislike" ->
+                                case "dislike":
                                 {
+                                    userLiked = userRepository.findById(user.getViewedUserId()).orElse(null);
+                                    List<UserLikes> likedList = userLikesRepository.findByLikedAndLiker(userLiked, user);
+                                    for (UserLikes userLikes : likedList) {
+                                        userLikes.setBooleanLiker(false);
+                                        userLikesRepository.save(userLikes);
+                                    }
                                     showViewKeyboard(chatId);
                                     showOtherUsers(chatId);
+                                } break;
 
-                                }
-                                case "stop" ->
+                                case "stop":
                                 {
                                     showMenuKeyboard(chatId);
                                     user.setState(UserState.MENU);
                                     userRepository.save(user);
                                 }
-                                default -> sendMessage(chatId, "Некорректная команда.");
+                                break;
+                                default: sendMessage(chatId, "Некорректная команда.");
+                                break;
+                            } break;
+
+                        case LIKED: {
+                            if (messageText.equalsIgnoreCase("Да")) {
+
+                                user.setState(UserState.MENU);
+                                userRepository.save(user);
+                            } else if (messageText.equalsIgnoreCase("Нет")) {
+
+                                showMenuKeyboard(chatId);
+                                user.setState(UserState.MENU);
+                                userRepository.save(user);
                             }
                             break;
-                        case LIKED:
-                            likedUserId=user.getLikedUserId();
-                            userLiked = userRepository.findById(likedUserId).orElse(null);
-                            if (messageText.equals("Да"))
-                            {
-                                if (userLiked != null)
-                                {
-                                    String message = "Анкета пользователя " + ":\n" +
-                                            "Имя: " + userLiked.getName() + "\n"
-                                            + "Пол: " + userLiked.getPurpose() + "\n"
-                                            + "Город: " + userLiked.getFaculty() + "\n"
-                                            + "Описание: " + userLiked.getDescription() + "\n\n";
-                                    sendMessage(chatId, message);
-                                    sendMessage(chatId, "Поставить взаимность? (Да/Нет) ");
-                                    user.setState(UserState.RECIPROCITY);
-                                    userRepository.save(user);
-                                }
-                            } if (messageText.equals("Нет"))
-                        {
-                            showMenuKeyboard(chatId);
-                            user.setState(UserState.MENU);
-                            userRepository.save(user);
                         }
-                            break;
+
                         case RECIPROCITY: {
                             switch (messageText){
                                 case "Да": {
@@ -282,15 +284,16 @@ public class MyBot extends TelegramLongPollingBot {
                                     //showMenuKeyboard(chatId);
                                     user.setState(UserState.MENU);
                                     userRepository.save(user);
-                                }
+                                } break;
                                 case "Нет": {
                                     showMenuKeyboard(chatId);
                                     user.setState(UserState.MENU);
                                     userRepository.save(user);
-                                }
+                                } break;
 
                             }
                         }
+                        break;
 
                     }
                 } else {
@@ -301,7 +304,7 @@ public class MyBot extends TelegramLongPollingBot {
         }
     }
     private ReplyKeyboardMarkup showFacultyKeyboard(){
-        List<String> faculties = Arrays.asList("АВТФ", "ФЛА", "МТФ", "ФМА", "ФПМИ", "РЭФ", "ФТФ", "ФЭН", "ФБ", "ФГО", "ИСТ");
+        List<String> faculties = Arrays.asList("АВТФ", "ФЛА", "МТФ", "ФМА", "ФПМИ", "РЭФ", "ФТФ", "ФЭН", "ФБ", "ФГО", "ИСТ", "ВСЕ");
 
         ReplyKeyboardMarkup facultyKeyboard=new ReplyKeyboardMarkup();
         facultyKeyboard.setOneTimeKeyboard(true);
@@ -354,6 +357,8 @@ public class MyBot extends TelegramLongPollingBot {
 
         sendMessage(chatId, "\uD83D\uDE09\uD83D\uDDFF", viewKeyboard);
     }
+
+
     private void showOtherUsers(long chatId) {
         List<User> userList = userRepository.findAll(); // Извлекает всех пользователей из репозитория.
         User currentUser = userRepository.findById(chatId).orElse(null);
@@ -390,6 +395,13 @@ public class MyBot extends TelegramLongPollingBot {
 
 
     }
+
+
+
+
+
+
+
 
 
     private void showProfile(long chatId, User user) {
