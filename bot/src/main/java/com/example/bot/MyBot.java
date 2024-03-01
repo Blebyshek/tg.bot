@@ -227,7 +227,7 @@ public class MyBot extends TelegramLongPollingBot {
                                         userLikesRepository.save(userLikes);
                                     }
                                     sendMessage(user.getViewedUserId(), "Ваша анкета кому-то понравилась. Хотите посмотреть? (Да/Нет)");
-
+                                    showAcceptKeyboard(user.getViewedUserId());
                                     showViewKeyboard(chatId);
                                     showOtherUsers(chatId);
                                     break;
@@ -240,10 +240,9 @@ public class MyBot extends TelegramLongPollingBot {
                                         userLikes.setBooleanLiker(false);
                                         userLikesRepository.save(userLikes);
                                     }
-                                    showViewKeyboard(chatId);
+                                    showViewKeyboard(chatId);   
                                     showOtherUsers(chatId);
                                 } break;
-
                                 case "stop":
                                 {
                                     showMenuKeyboard(chatId);
@@ -253,10 +252,13 @@ public class MyBot extends TelegramLongPollingBot {
                                 break;
                                 default: sendMessage(chatId, "Некорректная команда.");
                                 break;
-                            } break;
+                            }
+                            break;
 
                         case LIKED: {
+                            showAcceptKeyboard(chatId);
                             if (messageText.equalsIgnoreCase("Да")) {
+
                                 user.setCurrentIndex(0);
                                 userRepository.save(user);
                                 showLikedUser(chatId);
@@ -270,17 +272,13 @@ public class MyBot extends TelegramLongPollingBot {
                         }
 
                         case RECIPROCITY: {
+
                             switch (messageText){
                                 case "Да": {
-                                    userLiked = userRepository.findById(user.getViewedUserId()).orElse(null);
+
                                     List<UserLikes> likedList = userLikesRepository.findByLikedAndBooleanLikerIsTrue(user);
                                     String userLinkHTML;
-                                    System.out.println("Содержимое likedList:");
-                                    for (UserLikes userLikes : likedList) {
-                                        System.out.println("ID: " + userLikes.getId() + ", Liker: " + userLikes.getLiker() + ", Liked: " + userLikes.getLiked() + ", BooleanLiker: " + userLikes.isBooleanLiker() + ", BooleanLiked: " + userLikes.isBooleanLiked());
-                                    }
 
-                                    if (!likedList.isEmpty()) {
                                         UserLikes userLikes = likedList.get(0);
                                         if (userLikes.getLiker().getNickname() == null) {
                                             userLinkHTML = "<a href=\"tg://user?id=" + userLikes.getLiker().getChatId() + "\">" + userLikes.getLiker().getName() + "</a>";
@@ -298,22 +296,16 @@ public class MyBot extends TelegramLongPollingBot {
                                         }
                                         userLikes.setBooleanLiker(false);
                                         userLikesRepository.save(userLikes);
-
-
                                         showLikedUser(chatId);
-                                    }
-
-
-
 
                                 } break;
                                 case "Нет": {
-                                    userLiked = userRepository.findById(user.getViewedUserId()).orElse(null);
-                                    List<UserLikes> likedList = userLikesRepository.findByLikedAndLikerAndBooleanLikerIsTrue(userLiked, user);
+                                    List<UserLikes> likedList = userLikesRepository.findByLikedAndBooleanLikerIsTrue(user);
+                                    UserLikes userLikes = likedList.get(0);
+                                    userLikes.setBooleanLiker(false);
+                                    userLikesRepository.save(userLikes);
+                                    showLikedUser(chatId);
 
-                                    showMenuKeyboard(chatId);
-                                    user.setState(UserState.MENU);
-                                    userRepository.save(user);
                                 } break;
 
                             }
@@ -367,6 +359,19 @@ public class MyBot extends TelegramLongPollingBot {
 
         sendMessage(chatId, "Меню:\n1) Редактировать анкету\n2) Смотреть анкеты\n3)Моя анкета", menuKeyboard);
     }
+    private void showAcceptKeyboard (long chatId){
+        ReplyKeyboardMarkup acceptKeyboard = new ReplyKeyboardMarkup();
+        acceptKeyboard.setOneTimeKeyboard(true);
+        acceptKeyboard.setResizeKeyboard(true);
+        List<KeyboardRow> acceptRows= new ArrayList<>();
+
+        KeyboardRow acceptRow = new KeyboardRow();
+        acceptRow.add(new KeyboardButton("Да"));
+        acceptRow.add(new KeyboardButton("Нет"));
+        acceptRows.add(acceptRow);
+        acceptKeyboard.setKeyboard(acceptRows);
+        sendMessage(chatId, "\uD83D\uDE09\uD83D\uDDFF", acceptKeyboard);
+    }
     private void showViewKeyboard(long chatId) {
         ReplyKeyboardMarkup viewKeyboard = new ReplyKeyboardMarkup();
         viewKeyboard.setOneTimeKeyboard(true);
@@ -397,6 +402,7 @@ public class MyBot extends TelegramLongPollingBot {
                     "Город: " + likerUser.getFaculty() + "\n" +
                     "Описание: " + likerUser.getDescription() + "\n\n";
             sendMessage(chatId, message);
+            sendMessage(chatId, "Поставить взаимность Да/Нет");
                 currentUser.setState(UserState.RECIPROCITY);
                 userRepository.save(currentUser);
         } else {
@@ -408,31 +414,29 @@ public class MyBot extends TelegramLongPollingBot {
     }
 
     private void showOtherUsers(long chatId) {
-        List<User> userList = userRepository.findAll(); // Извлекает всех пользователей из репозитория.
         User currentUser = userRepository.findById(chatId).orElse(null);
+        List<User> userList= userRepository.findByPurpose(currentUser.getPurpose());
         int currentUserIndex = currentUser.getCurrentIndex();
-
         userList.removeIf(user -> user.getChatId().equals(chatId));
         userList.sort(Comparator.comparingLong(User::getChatId)); //пользователи в БД менялись местами и был баг показа 1 анкеты, это его убирает
-
         if (currentUserIndex < userList.size()) {
             User viewedUser = userList.get(currentUserIndex);
 
-            String message = "Анкета пользователя " + viewedUser.getName() + ":\n" +
-                    "Имя: " + viewedUser.getName() + "\n" +
-                    "Пол: " + viewedUser.getPurpose() + "\n" +
-                    "Город: " + viewedUser.getFaculty() + "\n" +
-                    "Описание: " + viewedUser.getDescription() + "\n\n";
+                String message = "Анкета пользователя \n" +
+                        "Имя: " + viewedUser.getName() + "\n" +
+                        "Возраст: " + viewedUser.getAge() + "\n" +
+                        "Факультет: " + viewedUser.getFaculty() + "\n" +
+                        "Описание: " + viewedUser.getDescription() + "\n\n";
 
-            // Отправляем анкету пользователю
-            sendMessage(chatId, message);
-            currentUser.setViewedUserId(viewedUser.getChatId());
-            currentUserIndex++;
-            currentUser.setCurrentIndex(currentUserIndex);
-            currentUser.setState(UserState.VIEW);
-            userRepository.save(currentUser);
+                // Отправляем анкету пользователю
+                sendMessage(chatId, message);
+                currentUser.setViewedUserId(viewedUser.getChatId());
+                currentUserIndex++;
+                currentUser.setCurrentIndex(currentUserIndex);
+                currentUser.setState(UserState.VIEW);
+                userRepository.save(currentUser);
+
         } else {
-            // Если больше пользователей нет, вы можете отправить сообщение о завершении списка
             sendMessage(chatId, "Список пользователей завершен.");
             showMenuKeyboard(chatId);
             currentUserIndex = 0;
@@ -445,17 +449,14 @@ public class MyBot extends TelegramLongPollingBot {
     }
 
 
-
-
-
-
-
-
-
     private void showProfile(long chatId, User user) {
 
-        sendMessage(chatId, "Ваша анкета:\nИмя: " + user.getName() + "\nПол: " + user.getPurpose() + "\nВозраст: " + user.getAge() + "\nГород: " + user.getFaculty() + "\nОписание: " + user.getDescription());
         showMenuKeyboard(chatId);
+        sendMessage(chatId, "Ваша анкета:\nИмя: " +
+                user.getName() + "\nЦель поиска: " +
+                user.getPurpose() + "\nВозраст: " + user.getAge() +
+                "\nФакультет: " + user.getFaculty() + "\nОписание: " + user.getDescription());
+
     }
 
 
