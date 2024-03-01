@@ -213,6 +213,14 @@ public class MyBot extends TelegramLongPollingBot {
                                     userLiked.setState(UserState.LIKED);
                                     userRepository.save(userLiked);
                                     List<UserLikes> likedList = userLikesRepository.findByLikedAndLiker(userLiked, user);
+                                    if (likedList.isEmpty()){
+                                        UserLikes newUserLikes=new UserLikes();
+                                        newUserLikes.setLiked(userLiked);
+                                        newUserLikes.setLiker(user);
+                                        newUserLikes.setBooleanLiked(false);
+                                        newUserLikes.setBooleanLiker(true);
+                                        userLikesRepository.save(newUserLikes);
+                                    }
                                     for (UserLikes userLikes : likedList) {
                                         userLikes.setBooleanLiker(true);
                                         userLikes.setBooleanLiked(false);
@@ -249,11 +257,11 @@ public class MyBot extends TelegramLongPollingBot {
 
                         case LIKED: {
                             if (messageText.equalsIgnoreCase("Да")) {
-
-                                user.setState(UserState.MENU);
+                                user.setCurrentIndex(0);
                                 userRepository.save(user);
-                            } else if (messageText.equalsIgnoreCase("Нет")) {
+                                showLikedUser(chatId);
 
+                            } else if (messageText.equalsIgnoreCase("Нет")) {
                                 showMenuKeyboard(chatId);
                                 user.setState(UserState.MENU);
                                 userRepository.save(user);
@@ -264,28 +272,45 @@ public class MyBot extends TelegramLongPollingBot {
                         case RECIPROCITY: {
                             switch (messageText){
                                 case "Да": {
-                                    likedUserId=user.getLikedUserId();
+                                    userLiked = userRepository.findById(user.getViewedUserId()).orElse(null);
+                                    List<UserLikes> likedList = userLikesRepository.findByLikedAndBooleanLikerIsTrue(user);
                                     String userLinkHTML;
-                                    userLiked = userRepository.findById(likedUserId).orElse(null);
-                                    if (userLiked.getNickname()==null){
-                                        userLinkHTML = "<a href=\"tg://user?id=" + likedUserId + "\">" + userLiked.getName() + "</a>";
-                                        sendMessage(chatId, "Связаться с " + userLinkHTML);
-                                    } else {
-                                        userLinkHTML = "<a href=\"t.me/" + userLiked.getNickname() + "\">" + userLiked.getName() + "</a>";
-                                        sendMessage(chatId, "Связаться с " + userLinkHTML);
+                                    System.out.println("Содержимое likedList:");
+                                    for (UserLikes userLikes : likedList) {
+                                        System.out.println("ID: " + userLikes.getId() + ", Liker: " + userLikes.getLiker() + ", Liked: " + userLikes.getLiked() + ", BooleanLiker: " + userLikes.isBooleanLiker() + ", BooleanLiked: " + userLikes.isBooleanLiked());
                                     }
-                                    if (user.getNickname()==null){
-                                        userLinkHTML = "<a href=\"tg://user?id=" + chatId + "\">" + user.getName() + "</a>";
-                                        sendMessage(likedUserId, "Есть взаимность с " + userLinkHTML);
-                                    } else {
-                                        userLinkHTML = "<a href=\"t.me/" + user.getNickname() + "\">" + user.getName() + "</a>";
-                                        sendMessage(likedUserId, "Есть взаимность  с " + userLinkHTML);
+
+                                    if (!likedList.isEmpty()) {
+                                        UserLikes userLikes = likedList.get(0);
+                                        if (userLikes.getLiker().getNickname() == null) {
+                                            userLinkHTML = "<a href=\"tg://user?id=" + userLikes.getLiker().getChatId() + "\">" + userLikes.getLiker().getName() + "</a>";
+                                            sendMessage(chatId, "Связаться с " + userLinkHTML);
+                                        } else {
+                                            userLinkHTML = "<a href=\"t.me/" + userLikes.getLiker().getNickname() + "\">" + userLikes.getLiker().getName() + "</a>";
+                                            sendMessage(chatId, "Связаться с " + userLinkHTML);
+                                        }
+                                        if (user.getNickname() == null) {
+                                            userLinkHTML = "<a href=\"tg://user?id=" + chatId + "\">" + user.getName() + "</a>";
+                                            sendMessage(userLikes.getLiker().getChatId(), "Есть взаимность с " + userLinkHTML);
+                                        } else {
+                                            userLinkHTML = "<a href=\"t.me/" + user.getNickname() + "\">" + user.getName() + "</a>";
+                                            sendMessage(userLikes.getLiker().getChatId(), "Есть взаимность  с " + userLinkHTML);
+                                        }
+                                        userLikes.setBooleanLiker(false);
+                                        userLikesRepository.save(userLikes);
+
+
+                                        showLikedUser(chatId);
                                     }
-                                    //showMenuKeyboard(chatId);
-                                    user.setState(UserState.MENU);
-                                    userRepository.save(user);
+
+
+
+
                                 } break;
                                 case "Нет": {
+                                    userLiked = userRepository.findById(user.getViewedUserId()).orElse(null);
+                                    List<UserLikes> likedList = userLikesRepository.findByLikedAndLikerAndBooleanLikerIsTrue(userLiked, user);
+
                                     showMenuKeyboard(chatId);
                                     user.setState(UserState.MENU);
                                     userRepository.save(user);
@@ -358,6 +383,29 @@ public class MyBot extends TelegramLongPollingBot {
         sendMessage(chatId, "\uD83D\uDE09\uD83D\uDDFF", viewKeyboard);
     }
 
+    private void showLikedUser(long chatId) {
+        List<UserLikes> likedList = userLikesRepository.findByLikedAndBooleanLikerIsTrue(userRepository.findById(chatId).orElse(null));
+        User currentUser = userRepository.findById(chatId).orElse(null);
+
+            if (!likedList.isEmpty()){
+             UserLikes like=likedList.get(0);
+
+            User likerUser = like.getLiker();
+            String message = "Анкета пользователя " + likerUser.getName() + ":\n" +
+                    "Имя: " + likerUser.getName() + "\n" +
+                    "Пол: " + likerUser.getPurpose() + "\n" +
+                    "Город: " + likerUser.getFaculty() + "\n" +
+                    "Описание: " + likerUser.getDescription() + "\n\n";
+            sendMessage(chatId, message);
+                currentUser.setState(UserState.RECIPROCITY);
+                userRepository.save(currentUser);
+        } else {
+                sendMessage(chatId,"Анкеты закончились");
+                currentUser.setState(UserState.MENU);
+                userRepository.save(currentUser);
+            }
+
+    }
 
     private void showOtherUsers(long chatId) {
         List<User> userList = userRepository.findAll(); // Извлекает всех пользователей из репозитория.

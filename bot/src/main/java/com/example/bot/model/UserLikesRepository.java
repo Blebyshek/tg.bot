@@ -10,6 +10,8 @@ public interface UserLikesRepository extends JpaRepository<UserLikes,Long> {
 
     @Query("SELECT ul FROM UserLikes ul WHERE ul.liked = :likedUser AND ul.liker = :likerUser")
     List<UserLikes> findByLikedAndLiker(User likedUser, User likerUser);
+    List<UserLikes> findByLikedAndLikerAndBooleanLikerIsTrue(User liked, User liker);
+    List<UserLikes>findByLikedAndBooleanLikerIsTrue(User liked);
 
 
 }
